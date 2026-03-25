@@ -145,8 +145,8 @@ export const securityMetrics = {
 }
 
 export const kpiMetrics = {
-  avgResponseTime: 25, // minutes
-  avgResolutionTime: 4.2, // hours
+  avgResponseTime: 2, // minutes
+  avgResolutionTime: 2, // minutes
   slaCumplido: 94,
   satisfaccion: 4.6,
 }

@@ -67,7 +67,7 @@ export function KPICards({ avgResponseTime, avgResolutionTime, slaCumplido, sati
       />
       <KPICard
         title="Tiempo de Resolución"
-        value={`${avgResolutionTime}h`}
+        value={`${avgResolutionTime} min`}
         subtitle="Promedio"
         icon={<CheckCircle className="h-5 w-5" />}
         trend={{ value: -8, isPositive: true }}

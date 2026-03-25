@@ -24,8 +24,8 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
   const avgResolutionTime = resolvedTickets.length > 0
     ? resolvedTickets.reduce((total, ticket) => {
         const resolvedAt = ticket.resolvedAt ?? ticket.createdAt
-        const durationInHours = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60 * 60)
-        return total + durationInHours
+        const durationInMinutes = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60)
+        return total + durationInMinutes
       }, 0) / resolvedTickets.length
     : kpiMetrics.avgResolutionTime
 
@@ -33,8 +33,8 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
     ? Math.round(
         (resolvedTickets.filter((ticket) => {
           const resolvedAt = ticket.resolvedAt ?? ticket.createdAt
-          const durationInHours = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60 * 60)
-          return durationInHours <= 8
+          const durationInMinutes = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60)
+          return durationInMinutes <= 2
         }).length / resolvedTickets.length) * 100
       )
     : kpiMetrics.slaCumplido
