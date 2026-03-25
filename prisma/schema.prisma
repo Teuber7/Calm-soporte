@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum TicketPriority {
+  alta
+  media
+  baja
+}
+
+enum TicketStatus {
+  abierto
+  en_proceso
+  resuelto
+}
+
+enum LocationStatus {
+  online
+  offline
+}
+
+enum EquipmentType {
+  PC
+  Notebook
+  Periferico
+  Monitor
+  Impresora
+}
+
+enum EquipmentStatus {
+  activo
+  mantenimiento
+  baja
+}
+
+enum UserAccessStatus {
+  onboarding
+  offboarding
+  active
+}
+
+model Ticket {
+  id         String         @id
+  userName   String
+  problem    String
+  priority   TicketPriority
+  status     TicketStatus
+  createdAt  DateTime       @default(now())
+  resolvedAt DateTime?
+  rating     Int?
+  comment    String?
+}
+
+model Location {
+  id           String         @id
+  name         String
+  status       LocationStatus
+  uptimeStart  DateTime
+  lastDowntime DateTime?
+}
+
+model Equipment {
+  id           String          @id
+  type         EquipmentType
+  model        String
+  status       EquipmentStatus
+  assignedTo   String?
+  serialNumber String          @unique
+}
+
+model License {
+  id            String @id
+  software      String
+  totalLicenses Int
+  usedLicenses  Int
+  icon          String
+}
+
+model UserAccess {
+  id         String           @id
+  name       String
+  email      String           @unique
+  department String
+  status     UserAccessStatus
+}
