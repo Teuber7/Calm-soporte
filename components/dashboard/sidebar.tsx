@@ -8,12 +8,9 @@ import {
   LayoutDashboard,
   Ticket,
   Globe,
-  Shield,
   Monitor,
   Key,
   Users,
-  Settings,
-  HelpCircle,
 } from "lucide-react"
 
 const navigation = [
@@ -24,11 +21,6 @@ const navigation = [
   { name: "Inventario", href: "/inventario", icon: Monitor },
   { name: "Licencias", href: "/licencias", icon: Key },
   { name: "Usuarios", href: "/usuarios", icon: Users },
-]
-
-const secondaryNavigation = [
-  { name: "Configuración", href: "/configuracion", icon: Settings },
-  { name: "Ayuda", href: "/ayuda", icon: HelpCircle },
 ]
 
 export function Sidebar() {
@@ -73,29 +65,6 @@ export function Sidebar() {
           )
         })}
 
-        <div className="my-4 border-t border-white/20" />
-
-        <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-white/70">
-          Sistema
-        </p>
-        {secondaryNavigation.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-white/20 text-white"
-                  : "text-white/90 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          )
-        })}
       </nav>
 
       {/* User Profile */}
