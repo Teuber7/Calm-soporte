@@ -6,7 +6,7 @@ import { LocationMonitor } from "@/components/dashboard/location-monitor"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { mockLocations, type Location } from "@/lib/mock-data"
+import type { Location } from "@/lib/mock-data"
 import { Wifi, WifiOff, RefreshCw, Server, Activity, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -250,28 +250,18 @@ export default function InfraestructuraPage() {
     }))
   }
 
-  // Cargar datos del localStorage al montar el componente
+  // Cargar datos de la API al montar el componente
   useEffect(() => {
-    const savedLocations = localStorage.getItem("infraLocations")
-    const savedIncidents = localStorage.getItem("infraIncidents")
-    
-    if (savedLocations) {
-      try {
-        const parsed = JSON.parse(savedLocations)
-        const normalizedLocations = normalizeLocations(parsed)
-        setLocations(normalizedLocations)
-        setPreviousStates(Object.fromEntries(normalizedLocations.map((loc: Location) => [loc.id, loc.status])))
-      } catch {
-        const normalizedMock = normalizeLocations(mockLocations)
-        setLocations(normalizedMock)
-        setPreviousStates(Object.fromEntries(normalizedMock.map((loc) => [loc.id, loc.status])))
-      }
-    } else {
-      const normalizedMock = normalizeLocations(mockLocations)
-      setLocations(normalizedMock)
-      setPreviousStates(Object.fromEntries(normalizedMock.map((loc) => [loc.id, loc.status])))
-    }
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((data: Location[]) => {
+        const normalized = normalizeLocations(data)
+        setLocations(normalized)
+        setPreviousStates(Object.fromEntries(normalized.map((loc) => [loc.id, loc.status])))
+      })
+      .catch(() => {})
 
+    const savedIncidents = localStorage.getItem("infraIncidents")
     if (savedIncidents) {
       try {
         const parsed = JSON.parse(savedIncidents, (key, value) => {
@@ -329,12 +319,12 @@ export default function InfraestructuraPage() {
     )
   }, [locations])
 
-  // Guardar ubicaciones en localStorage cuando cambien
+  // Guardar incidentes en localStorage cuando cambien
   useEffect(() => {
-    if (locations.length > 0) {
-      localStorage.setItem("infraLocations", JSON.stringify(locations))
+    if (incidents.length > 0) {
+      localStorage.setItem("infraIncidents", JSON.stringify(incidents))
     }
-  }, [locations])
+  }, [incidents])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -342,17 +332,27 @@ export default function InfraestructuraPage() {
     setIsRefreshing(false)
   }
 
-  const toggleStatus = (locationId: string) => {
+  const toggleStatus = async (locationId: string) => {
+    const loc = locations.find((l) => l.id === locationId)
+    if (!loc) return
+    const newStatus = loc.status === "online" ? "offline" : "online"
+    const uptimeStart = newStatus === "online" ? new Date().toISOString() : loc.uptimeStart.toISOString()
+    const lastDowntime = newStatus === "offline" ? new Date().toISOString() : (loc.lastDowntime?.toISOString() ?? null)
+    await fetch(`/api/locations/${locationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus, uptimeStart, lastDowntime }),
+    }).catch(() => {})
     setLocations((prev) =>
-      prev.map((loc) =>
-        loc.id === locationId
+      prev.map((l) =>
+        l.id === locationId
           ? {
-              ...loc,
-              status: loc.status === "online" ? "offline" : "online",
-              uptimeStart: loc.status === "offline" ? new Date() : loc.uptimeStart,
-              lastDowntime: loc.status === "online" ? new Date() : loc.lastDowntime,
+              ...l,
+              status: newStatus,
+              uptimeStart: newStatus === "online" ? new Date() : l.uptimeStart,
+              lastDowntime: newStatus === "offline" ? new Date() : l.lastDowntime,
             }
-          : loc
+          : l
       )
     )
   }

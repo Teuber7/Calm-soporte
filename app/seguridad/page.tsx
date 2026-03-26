@@ -3,7 +3,14 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { securityMetrics } from "@/lib/mock-data"
+const securityMetrics = {
+  employeesTrained: 85,
+  phishingSimulationsPassed: 78,
+  securityIncidents: 3,
+  lastIncidentDays: 12,
+  pendingUpdates: 15,
+  firewallStatus: "active" as const,
+}
 import { 
   Shield, 
   AlertTriangle, 

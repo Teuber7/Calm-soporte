@@ -6,10 +6,14 @@ import { KPICards } from "@/components/dashboard/kpi-cards"
 import { TicketsList } from "@/components/dashboard/tickets-list"
 import { LocationMonitor } from "@/components/dashboard/location-monitor"
 import { SatisfactionChart } from "@/components/dashboard/satisfaction-chart"
-import { mockTickets, mockLocations, kpiMetrics, type Location, type Ticket } from "@/lib/mock-data"
+import type { Location, Ticket } from "@/lib/mock-data"
 
-const INFRA_LOCATIONS_STORAGE_KEY = "infraLocations"
-const TICKETS_STORAGE_KEY = "supportTickets"
+const fallbackMetrics = {
+  avgResponseTime: 2,
+  avgResolutionTime: 2,
+  slaCumplido: 94,
+  satisfaccion: 4.6,
+}
 
 function calculateDashboardMetrics(tickets: Ticket[]) {
   const ratedTickets = tickets.filter((ticket) => typeof ticket.rating === "number")
@@ -19,7 +23,7 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
 
   const satisfaccion = ratedTickets.length > 0
     ? ratedTickets.reduce((total, ticket) => total + (ticket.rating ?? 0), 0) / ratedTickets.length
-    : kpiMetrics.satisfaccion
+    : fallbackMetrics.satisfaccion
 
   const avgResolutionTime = resolvedTickets.length > 0
     ? resolvedTickets.reduce((total, ticket) => {
@@ -27,7 +31,7 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
         const durationInMinutes = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60)
         return total + durationInMinutes
       }, 0) / resolvedTickets.length
-    : kpiMetrics.avgResolutionTime
+    : fallbackMetrics.avgResolutionTime
 
   const slaCumplido = resolvedTickets.length > 0
     ? Math.round(
@@ -37,7 +41,7 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
           return durationInMinutes <= 2
         }).length / resolvedTickets.length) * 100
       )
-    : kpiMetrics.slaCumplido
+    : fallbackMetrics.slaCumplido
 
   const sortedRatedTickets = [...ratedTickets].sort(
     (left, right) => left.createdAt.getTime() - right.createdAt.getTime()
@@ -59,7 +63,7 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
     : 0
 
   return {
-    avgResponseTime: kpiMetrics.avgResponseTime,
+    avgResponseTime: fallbackMetrics.avgResponseTime,
     avgResolutionTime,
     slaCumplido,
     satisfaccion,
@@ -68,73 +72,44 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
 }
 
 export default function DashboardPage() {
-  const [locations, setLocations] = useState<Location[]>(mockLocations)
+  const [locations, setLocations] = useState<Location[]>([])
   const [tickets, setTickets] = useState<Ticket[]>([])
   const dashboardMetrics = calculateDashboardMetrics(tickets)
 
-  // Load and refresh locations
+  // Load locations once
   useEffect(() => {
-    const normalizeLocations = (rawLocations: Location[]): Location[] => {
-      const locationNamesById: Record<string, string> = {
-        "LOC-001": "Localm Austrias",
-        "LOC-002": "Localm Libertador",
-        "LOC-003": "Localm Godoy",
-        "LOC-004": "Localm Santos",
-      }
-
-      return rawLocations.map((loc) => ({
-        ...loc,
-        name: locationNamesById[loc.id] ?? loc.name,
-        uptimeStart: new Date(loc.uptimeStart),
-        lastDowntime: loc.lastDowntime ? new Date(loc.lastDowntime) : undefined,
-      }))
-    }
-
-    const savedLocations = localStorage.getItem(INFRA_LOCATIONS_STORAGE_KEY)
-    if (!savedLocations) {
-      setLocations(normalizeLocations(mockLocations))
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(savedLocations) as Location[]
-      setLocations(normalizeLocations(parsed))
-    } catch {
-      setLocations(normalizeLocations(mockLocations))
-    }
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((data: Location[]) =>
+        setLocations(
+          data.map((loc) => ({
+            ...loc,
+            uptimeStart: new Date(loc.uptimeStart),
+            lastDowntime: loc.lastDowntime ? new Date(loc.lastDowntime) : undefined,
+          }))
+        )
+      )
+      .catch(() => {})
   }, [])
 
-  // Load and refresh tickets with polling for real-time updates
+  // Poll tickets every 5s for real-time updates
   useEffect(() => {
-    const normalizeTickets = (rawTickets: Ticket[]): Ticket[] => {
-      return rawTickets.map((ticket) => ({
-        ...ticket,
-        createdAt: new Date(ticket.createdAt),
-        resolvedAt: ticket.resolvedAt ? new Date(ticket.resolvedAt) : undefined,
-      }))
+    const load = () => {
+      fetch("/api/tickets")
+        .then((r) => r.json())
+        .then((data: Ticket[]) =>
+          setTickets(
+            data.map((t) => ({
+              ...t,
+              createdAt: new Date(t.createdAt),
+              resolvedAt: t.resolvedAt ? new Date(t.resolvedAt) : undefined,
+            }))
+          )
+        )
+        .catch(() => {})
     }
-
-    const loadTickets = () => {
-      const savedTickets = localStorage.getItem(TICKETS_STORAGE_KEY)
-      if (!savedTickets) {
-        setTickets(normalizeTickets(mockTickets))
-        return
-      }
-
-      try {
-        const parsed = JSON.parse(savedTickets) as Ticket[]
-        setTickets(normalizeTickets(parsed))
-      } catch {
-        setTickets(normalizeTickets(mockTickets))
-      }
-    }
-
-    // Load initially
-    loadTickets()
-
-    // Poll for updates every 2 seconds for real-time updates
-    const interval = setInterval(loadTickets, 2000)
-
+    load()
+    const interval = setInterval(load, 5000)
     return () => clearInterval(interval)
   }, [])
 

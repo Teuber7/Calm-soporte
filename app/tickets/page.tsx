@@ -5,9 +5,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { TicketForm } from "@/components/tickets/ticket-form"
 import { TicketsTable } from "@/components/tickets/tickets-table"
 import { RatingDialog } from "@/components/tickets/rating-dialog"
-import { mockTickets, type Ticket } from "@/lib/mock-data"
-
-const TICKETS_STORAGE_KEY = "supportTickets"
+import type { Ticket } from "@/lib/mock-data"
 
 function normalizeTickets(rawTickets: Ticket[]): Ticket[] {
   return rawTickets.map((ticket) => ({
@@ -20,73 +18,58 @@ function normalizeTickets(rawTickets: Ticket[]): Ticket[] {
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [ratingTicketId, setRatingTicketId] = useState<string | null>(null)
-  const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    const savedTickets = localStorage.getItem(TICKETS_STORAGE_KEY)
-
-    if (!savedTickets) {
-      setTickets(normalizeTickets(mockTickets))
-      setIsHydrated(true)
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(savedTickets) as Ticket[]
-      setTickets(normalizeTickets(parsed))
-    } catch {
-      setTickets(normalizeTickets(mockTickets))
-    }
-
-    setIsHydrated(true)
+    fetch("/api/tickets")
+      .then((r) => r.json())
+      .then((data: Ticket[]) => setTickets(normalizeTickets(data)))
+      .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (!isHydrated) return
-    localStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(tickets))
-  }, [tickets, isHydrated])
-
-  const handleCreateTicket = (data: {
+  const handleCreateTicket = async (data: {
     userName: string
     problem: string
     priority: "alta" | "media" | "baja"
   }) => {
-    const newTicket: Ticket = {
-      id: `TK-${Date.now()}`,
-      ...data,
-      status: "abierto",
-      createdAt: new Date(),
-    }
-    setTickets((prev) => [newTicket, ...prev])
+    const res = await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    const newTicket: Ticket = await res.json()
+    setTickets((prev) => [normalizeTickets([newTicket])[0], ...prev])
   }
 
-  const handleStatusChange = (ticketId: string, status: Ticket["status"]) => {
+  const handleStatusChange = async (ticketId: string, status: Ticket["status"]) => {
+    const resolvedAt = status === "resuelto" ? new Date().toISOString() : null
+    await fetch(`/api/tickets/${ticketId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, resolvedAt }),
+    })
     setTickets((prev) =>
       prev.map((t) =>
         t.id === ticketId
-          ? {
-              ...t,
-              status,
-              resolvedAt: status === "resuelto" ? new Date() : undefined,
-            }
+          ? { ...t, status, resolvedAt: resolvedAt ? new Date(resolvedAt) : undefined }
           : t
       )
     )
   }
 
   const handleResolve = (ticketId: string) => {
-    // First mark as resolved
     handleStatusChange(ticketId, "resuelto")
-    // Then open rating dialog
     setRatingTicketId(ticketId)
   }
 
-  const handleRating = (rating: number, comment?: string) => {
+  const handleRating = async (rating: number, comment?: string) => {
     if (ratingTicketId) {
+      await fetch(`/api/tickets/${ratingTicketId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating, comment }),
+      })
       setTickets((prev) =>
-        prev.map((t) =>
-          t.id === ratingTicketId ? { ...t, rating, comment } : t
-        )
+        prev.map((t) => (t.id === ratingTicketId ? { ...t, rating, comment } : t))
       )
       setRatingTicketId(null)
     }

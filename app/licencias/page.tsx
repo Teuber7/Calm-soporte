@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockLicenses, type License } from "@/lib/mock-data"
+import type { License } from "@/lib/mock-data"
 import { 
   Key, 
   FileText,
@@ -31,7 +31,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const LICENSES_STORAGE_KEY = "softwareLicenses"
 const licenseIcons = ["file-text", "message-square", "database", "pen-tool", "mail", "globe"] as const
 
 function getIcon(iconName: string) {
@@ -302,7 +301,6 @@ function LicenseRecommendations({ licenses }: { licenses: License[] }) {
 export default function LicenciasPage() {
   const [licenses, setLicenses] = useState<License[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [isHydrated, setIsHydrated] = useState(false)
   const [form, setForm] = useState({
     software: "",
     totalLicenses: "",
@@ -311,93 +309,55 @@ export default function LicenciasPage() {
   })
 
   useEffect(() => {
-    const saved = localStorage.getItem(LICENSES_STORAGE_KEY)
-    if (!saved) {
-      setLicenses(mockLicenses)
-      setIsHydrated(true)
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(saved) as License[]
-      setLicenses(parsed)
-    } catch {
-      setLicenses(mockLicenses)
-    }
-
-    setIsHydrated(true)
+    fetch("/api/licenses")
+      .then((r) => r.json())
+      .then((data: License[]) => setLicenses(data))
+      .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (!isHydrated) return
-    localStorage.setItem(LICENSES_STORAGE_KEY, JSON.stringify(licenses))
-  }, [licenses, isHydrated])
-
   const resetForm = () => {
-    setForm({
-      software: "",
-      totalLicenses: "",
-      usedLicenses: "",
-      icon: "file-text",
-    })
+    setForm({ software: "", totalLicenses: "", usedLicenses: "", icon: "file-text" })
     setEditingId(null)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.software.trim()) return
-
     const total = Number(form.totalLicenses)
     const used = Number(form.usedLicenses)
-
-    if (!Number.isFinite(total) || !Number.isFinite(used) || total <= 0 || used < 0 || used > total) {
-      return
-    }
+    if (!Number.isFinite(total) || !Number.isFinite(used) || total <= 0 || used < 0 || used > total) return
 
     if (editingId) {
-      setLicenses((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? {
-                ...item,
-                software: form.software.trim(),
-                totalLicenses: total,
-                usedLicenses: used,
-                icon: form.icon,
-              }
-            : item
-        )
-      )
+      const updated = { software: form.software.trim(), totalLicenses: total, usedLicenses: used, icon: form.icon }
+      await fetch(`/api/licenses/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      }).catch(() => {})
+      setLicenses((prev) => prev.map((item) => item.id === editingId ? { ...item, ...updated } : item))
       resetForm()
       return
     }
 
-    const newLicense: License = {
-      id: `LIC-${Date.now()}`,
-      software: form.software.trim(),
-      totalLicenses: total,
-      usedLicenses: used,
-      icon: form.icon,
-    }
-
+    const newId = `LIC-${Date.now()}`
+    const newLicense: License = { id: newId, software: form.software.trim(), totalLicenses: total, usedLicenses: used, icon: form.icon }
+    await fetch("/api/licenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newLicense),
+    }).catch(() => {})
     setLicenses((prev) => [newLicense, ...prev])
     resetForm()
   }
 
   const handleEdit = (license: License) => {
     setEditingId(license.id)
-    setForm({
-      software: license.software,
-      totalLicenses: String(license.totalLicenses),
-      usedLicenses: String(license.usedLicenses),
-      icon: license.icon,
-    })
+    setForm({ software: license.software, totalLicenses: String(license.totalLicenses), usedLicenses: String(license.usedLicenses), icon: license.icon })
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/licenses/${id}`, { method: "DELETE" }).catch(() => {})
     setLicenses((prev) => prev.filter((item) => item.id !== id))
-    if (editingId === id) {
-      resetForm()
-    }
+    if (editingId === id) resetForm()
   }
 
   return (

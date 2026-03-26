@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockEquipment, type Equipment } from "@/lib/mock-data"
+import type { Equipment } from "@/lib/mock-data"
 import { 
   Monitor, 
   Laptop, 
@@ -31,8 +31,6 @@ import {
   Trash2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const INVENTORY_STORAGE_KEY = "inventoryEquipment"
 
 function getEquipmentIcon(type: Equipment["type"]) {
   switch (type) {
@@ -449,24 +447,44 @@ export default function InventarioPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([])
 
   useEffect(() => {
-    const saved = localStorage.getItem(INVENTORY_STORAGE_KEY)
-    if (!saved) {
-      setEquipment(mockEquipment)
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(saved) as Equipment[]
-      setEquipment(parsed)
-    } catch {
-      setEquipment(mockEquipment)
-    }
+    fetch("/api/equipment")
+      .then((r) => r.json())
+      .then((data: Equipment[]) => setEquipment(data))
+      .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (equipment.length === 0) return
-    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(equipment))
-  }, [equipment])
+  const handleEquipmentChange = async (next: Equipment[]) => {
+    const prev = equipment
+    if (next.length > prev.length) {
+      const added = next.find((item) => !prev.some((p) => p.id === item.id))
+      if (added) {
+        await fetch("/api/equipment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(added),
+        }).catch(() => {})
+      }
+    } else if (next.length < prev.length) {
+      const removed = prev.find((item) => !next.some((n) => n.id === item.id))
+      if (removed) {
+        await fetch(`/api/equipment/${removed.id}`, { method: "DELETE" }).catch(() => {})
+      }
+    } else {
+      const changed = next.find((item) => {
+        const old = prev.find((p) => p.id === item.id)
+        return old && JSON.stringify(old) !== JSON.stringify(item)
+      })
+      if (changed) {
+        const { id, ...data } = changed
+        await fetch(`/api/equipment/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }).catch(() => {})
+      }
+    }
+    setEquipment(next)
+  }
 
   return (
     <DashboardLayout
@@ -495,7 +513,7 @@ export default function InventarioPage() {
           </CardContent>
         </Card>
         <InventoryStats equipment={equipment} />
-        <EquipmentTable equipment={equipment} onChange={setEquipment} />
+        <EquipmentTable equipment={equipment} onChange={handleEquipmentChange} />
       </div>
     </DashboardLayout>
   )

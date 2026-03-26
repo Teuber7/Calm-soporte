@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { mockUsers, type UserAccess } from "@/lib/mock-data"
+import type { UserAccess } from "@/lib/mock-data"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
@@ -33,8 +33,6 @@ import {
   ArrowRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const USERS_STORAGE_KEY = "userAccessProcesses"
 
 function UserStats({ users }: { users: UserAccess[] }) {
   const onboarding = users.filter((u) => u.status === "onboarding").length
@@ -303,7 +301,7 @@ function InactiveUsersList({ users }: { users: UserAccess[] }) {
 }
 
 export default function UsuariosPage() {
-  const [users, setUsers] = useState<UserAccess[]>(mockUsers)
+  const [users, setUsers] = useState<UserAccess[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -313,26 +311,13 @@ export default function UsuariosPage() {
   })
 
   useEffect(() => {
-    const savedUsers = localStorage.getItem(USERS_STORAGE_KEY)
-
-    if (!savedUsers) {
-      setUsers(mockUsers)
-      return
-    }
-
-    try {
-      const parsedUsers = JSON.parse(savedUsers) as UserAccess[]
-      setUsers(parsedUsers)
-    } catch {
-      setUsers(mockUsers)
-    }
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((data: UserAccess[]) => setUsers(data))
+      .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
-  }, [users])
-
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!formData.name.trim() || !formData.email.trim()) return
 
     const newUser: UserAccess = {
@@ -354,63 +339,70 @@ export default function UsuariosPage() {
         { item: "Auditoría de accesos", completed: false },
       ] : undefined,
     }
-
+    await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newUser),
+    }).catch(() => {})
     setUsers((prev) => [...prev, newUser])
     setFormData({ name: "", email: "", department: "IT", type: "onboarding" })
     setIsDialogOpen(false)
   }
 
-  const handleToggleChecklist = (userId: string, itemIndex: number) => {
+  const handleToggleChecklist = async (userId: string, itemIndex: number) => {
+    const user = users.find((u) => u.id === userId)
+    if (!user) return
+    const isOnboarding = user.status === "onboarding"
+    const checklist = isOnboarding ? user.onboardingChecklist : user.offboardingChecklist
+    if (!checklist) return
+    const updatedChecklist = checklist.map((item, i) =>
+      i === itemIndex ? { ...item, completed: !item.completed } : item
+    )
+    const patch = isOnboarding
+      ? { onboardingChecklist: updatedChecklist }
+      : { offboardingChecklist: updatedChecklist }
+    await fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).catch(() => {})
     setUsers((prev) =>
-      prev.map((user) => {
-        if (user.id !== userId) return user
-
-        const isOnboarding = user.status === "onboarding"
-        const checklist = isOnboarding ? user.onboardingChecklist : user.offboardingChecklist
-
-        if (!checklist) return user
-
-        const updatedChecklist = checklist.map((item, i) =>
-          i === itemIndex ? { ...item, completed: !item.completed } : item
-        )
-
-        return isOnboarding
-          ? { ...user, onboardingChecklist: updatedChecklist }
-          : { ...user, offboardingChecklist: updatedChecklist }
-      })
+      prev.map((u) =>
+        u.id === userId
+          ? isOnboarding
+            ? { ...u, onboardingChecklist: updatedChecklist }
+            : { ...u, offboardingChecklist: updatedChecklist }
+          : u
+      )
     )
   }
 
-  const handleCompleteProcess = (userId: string) => {
-    setUsers((prev) =>
-      prev.flatMap((user) => {
-        if (user.id !== userId) {
-          return [user]
-        }
-
-        if (user.status === "onboarding") {
-          return [
-            {
-              ...user,
-              status: "active",
-              onboardingChecklist: undefined,
-            },
-          ]
-        }
-
-        if (user.status === "offboarding") {
-          return [
-            {
-              ...user,
-              status: "inactive",
-              offboardingChecklist: undefined,
-            },
-          ]
-        }
-
-        return [user]
-      })
-    )
+  const handleCompleteProcess = async (userId: string) => {
+    const user = users.find((u) => u.id === userId)
+    if (!user) return
+    if (user.status === "onboarding") {
+      await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active", onboardingChecklist: null }),
+      }).catch(() => {})
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, status: "active" as const, onboardingChecklist: undefined } : u
+        )
+      )
+    } else if (user.status === "offboarding") {
+      await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "inactive", offboardingChecklist: null }),
+      }).catch(() => {})
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, status: "inactive" as const, offboardingChecklist: undefined } : u
+        )
+      )
+    }
   }
 
   const onboardingUsers = users.filter((u) => u.status === "onboarding")
