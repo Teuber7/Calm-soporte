@@ -2,8 +2,6 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -26,6 +24,7 @@ export async function PATCH(
 
   // Send rating email when ticket is resolved and user has an email
   if (body.status === "resuelto" && ticket.userEmail && ticket.ratingToken) {
+    const resend = new Resend(process.env.RESEND_API_KEY)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
     const ratingUrl = `${appUrl}/calificar/${ticket.ratingToken}`
 
