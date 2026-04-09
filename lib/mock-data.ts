@@ -2,6 +2,7 @@
 export interface Ticket {
   id: string
   userName: string
+  userEmail?: string
   problem: string
   priority: "alta" | "media" | "baja"
   status: "abierto" | "en_proceso" | "resuelto"
@@ -9,6 +10,7 @@ export interface Ticket {
   resolvedAt?: Date
   rating?: number
   comment?: string
+  ratingToken?: string
 }
 
 export interface Location {

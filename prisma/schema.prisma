@@ -51,15 +51,17 @@ enum UserAccessStatus {
 }
 
 model Ticket {
-  id         String         @id
-  userName   String
-  problem    String
-  priority   TicketPriority
-  status     TicketStatus
-  createdAt  DateTime       @default(now())
-  resolvedAt DateTime?
-  rating     Int?
-  comment    String?
+  id          String         @id
+  userName    String
+  userEmail   String?
+  problem     String
+  priority    TicketPriority
+  status      TicketStatus
+  createdAt   DateTime       @default(now())
+  resolvedAt  DateTime?
+  rating      Int?
+  comment     String?
+  ratingToken String?        @unique
 }
 
 model Location {

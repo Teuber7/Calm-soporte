@@ -28,6 +28,7 @@ export default function TicketsPage() {
 
   const handleCreateTicket = async (data: {
     userName: string
+    userEmail: string
     problem: string
     priority: "alta" | "media" | "baja"
   }) => {

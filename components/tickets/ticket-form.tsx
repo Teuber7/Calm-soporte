@@ -17,6 +17,7 @@ import { Plus } from "lucide-react"
 interface TicketFormProps {
   onSubmit: (ticket: {
     userName: string
+    userEmail: string
     problem: string
     priority: "alta" | "media" | "baja"
   }) => void
@@ -24,6 +25,7 @@ interface TicketFormProps {
 
 export function TicketForm({ onSubmit }: TicketFormProps) {
   const [userName, setUserName] = useState("")
+  const [userEmail, setUserEmail] = useState("")
   const [problem, setProblem] = useState("")
   const [priority, setPriority] = useState<"alta" | "media" | "baja">("media")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -33,12 +35,13 @@ export function TicketForm({ onSubmit }: TicketFormProps) {
     if (!userName.trim() || !problem.trim()) return
 
     setIsSubmitting(true)
-    
+
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500))
-    
-    onSubmit({ userName, problem, priority })
+
+    onSubmit({ userName, userEmail, problem, priority })
     setUserName("")
+    setUserEmail("")
     setProblem("")
     setPriority("media")
     setIsSubmitting(false)
@@ -64,6 +67,19 @@ export function TicketForm({ onSubmit }: TicketFormProps) {
               placeholder="Ingrese su nombre"
               className="bg-secondary border-0"
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-card-foreground">
+              Email del Usuario
+            </label>
+            <Input
+              type="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              placeholder="correo@empresa.com"
+              className="bg-secondary border-0"
             />
           </div>
 
