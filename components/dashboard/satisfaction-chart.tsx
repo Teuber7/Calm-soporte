@@ -9,7 +9,7 @@ interface SatisfactionChartProps {
 }
 
 export function SatisfactionChart({ tickets }: SatisfactionChartProps) {
-  const ratedTickets = tickets.filter((t) => t.rating !== undefined)
+  const ratedTickets = tickets.filter((t) => t.rating != null)
   const avgRating =
     ratedTickets.length > 0
       ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length
