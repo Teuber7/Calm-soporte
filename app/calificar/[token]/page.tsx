@@ -115,7 +115,7 @@ export default function CalificarPage() {
 
             {/* Stars */}
             <div className="flex flex-col items-center gap-3">
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
@@ -123,11 +123,11 @@ export default function CalificarPage() {
                     onPointerEnter={() => setHovered(star)}
                     onPointerLeave={() => setHovered(0)}
                     onClick={() => { setRating(star); setHovered(0) }}
-                    className="p-1 transition-transform hover:scale-110"
+                    className="p-2 transition-transform hover:scale-110"
                   >
                     <Star
                       className={cn(
-                        "h-9 w-9 transition-colors",
+                        "h-10 w-10 transition-colors",
                         star <= (hovered > 0 ? hovered : rating)
                           ? "fill-primary text-primary"
                           : "text-muted-foreground/30"
@@ -136,11 +136,11 @@ export default function CalificarPage() {
                   </button>
                 ))}
               </div>
-              {(hovered || rating) > 0 && (
+              <div className="h-6 flex items-center justify-center">
                 <p className="text-sm font-medium text-primary">
-                  {labels[hovered || rating]}
+                  {labels[hovered > 0 ? hovered : rating] ?? ""}
                 </p>
-              )}
+              </div>
             </div>
 
             {/* Comment */}
