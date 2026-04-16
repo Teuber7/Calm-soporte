@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
 export async function PATCH(
   req: Request,
@@ -24,15 +24,20 @@ export async function PATCH(
 
   // Send rating email when ticket is resolved and user has an email
   if (body.status === "resuelto" && ticket.userEmail && ticket.ratingToken) {
-    if (!process.env.RESEND_API_KEY) {
-      console.error("[email] RESEND_API_KEY no está configurada")
-    } else {
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-      const ratingUrl = `${appUrl}/calificar/${ticket.ratingToken}`
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const ratingUrl = `${appUrl}/calificar/${ticket.ratingToken}`
 
-      const { data, error } = await resend.emails.send({
-        from: "Soporte Calm <ivanteuber@calmessimple.com.ar>",
+    try {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.GMAIL_USER,
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      })
+
+      await transporter.sendMail({
+        from: `"Soporte Calm" <${process.env.GMAIL_USER}>`,
         to: ticket.userEmail,
         subject: `¿Cómo fue tu experiencia con el soporte? (Ticket ${ticket.id})`,
         html: `
@@ -55,11 +60,9 @@ export async function PATCH(
         `,
       })
 
-      if (error) {
-        console.error("[email] Error al enviar:", JSON.stringify(error))
-      } else {
-        console.log("[email] Enviado OK, id:", data?.id, "to:", ticket.userEmail)
-      }
+      console.log("[email] Enviado OK a:", ticket.userEmail)
+    } catch (err) {
+      console.error("[email] Error al enviar:", err)
     }
   }
 
