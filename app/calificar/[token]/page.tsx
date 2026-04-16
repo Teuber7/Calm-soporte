@@ -120,15 +120,15 @@ export default function CalificarPage() {
                   <button
                     key={star}
                     type="button"
-                    onMouseEnter={() => setHovered(star)}
-                    onMouseLeave={() => setHovered(0)}
-                    onClick={() => setRating(star)}
+                    onPointerEnter={() => setHovered(star)}
+                    onPointerLeave={() => setHovered(0)}
+                    onClick={() => { setRating(star); setHovered(0) }}
                     className="p-1 transition-transform hover:scale-110"
                   >
                     <Star
                       className={cn(
                         "h-9 w-9 transition-colors",
-                        star <= (hovered || rating)
+                        star <= (hovered > 0 ? hovered : rating)
                           ? "fill-primary text-primary"
                           : "text-muted-foreground/30"
                       )}
