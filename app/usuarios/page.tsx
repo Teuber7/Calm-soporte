@@ -420,7 +420,7 @@ export default function UsuariosPage() {
           <h2 className="text-lg font-semibold text-foreground">Procesos Activos</h2>
             <Button onClick={() => setIsDialogOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            Nuevo Onboarding
+            Nuevo Onboarding / Offboarding
           </Button>
         </div>
 
