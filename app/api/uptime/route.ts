@@ -6,6 +6,7 @@ import { NextResponse } from "next/server"
 interface UptimeRobotMonitor {
   id: number
   friendly_name: string
+  url: string
   status: number
   all_time_uptime_ratio: string
   average_response_time: string
@@ -59,10 +60,11 @@ export async function GET() {
   const results = await Promise.all(
     monitors.map(async ({ key, name }) => {
       const monitor = await fetchMonitor(key)
-      if (!monitor) return { name, status: "offline" as const, uptime: "0", responseTime: null }
+      if (!monitor) return { name, url: null, status: "offline" as const, uptime: "0", responseTime: null }
       return {
         id: monitor.id,
         name: monitor.friendly_name || name,
+        url: monitor.url || null,
         status: mapStatus(monitor.status),
         uptime: parseFloat(monitor.all_time_uptime_ratio || "0").toFixed(2),
         responseTime: monitor.average_response_time ? parseInt(monitor.average_response_time) : null,
