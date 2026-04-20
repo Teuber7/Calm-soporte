@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PasswordGate } from "@/components/auth/password-gate"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -409,6 +410,7 @@ export default function UsuariosPage() {
   const offboardingUsers = users.filter((u) => u.status === "offboarding")
 
   return (
+    <PasswordGate section="Gestión de Usuarios">
     <DashboardLayout
       title="Gestión de Usuarios"
       description="Onboarding y Offboarding de empleados"
@@ -566,5 +568,6 @@ export default function UsuariosPage() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+    </PasswordGate>
   )
 }

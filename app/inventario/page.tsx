@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PasswordGate } from "@/components/auth/password-gate"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -487,6 +488,7 @@ export default function InventarioPage() {
   }
 
   return (
+    <PasswordGate section="Inventario IT">
     <DashboardLayout
       title="Inventario IT"
       description="Gestión de equipos y activos"
@@ -516,5 +518,6 @@ export default function InventarioPage() {
         <EquipmentTable equipment={equipment} onChange={handleEquipmentChange} />
       </div>
     </DashboardLayout>
+    </PasswordGate>
   )
 }

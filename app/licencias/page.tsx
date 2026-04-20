@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ElementType } from "react"
+import { PasswordGate } from "@/components/auth/password-gate"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -361,6 +362,7 @@ export default function LicenciasPage() {
   }
 
   return (
+    <PasswordGate section="Licencias de Software">
     <DashboardLayout
       title="Licencias de Software"
       description="Gestión y monitoreo de licencias"
@@ -434,5 +436,6 @@ export default function LicenciasPage() {
         <LicenseRecommendations licenses={licenses} />
       </div>
     </DashboardLayout>
+    </PasswordGate>
   )
 }

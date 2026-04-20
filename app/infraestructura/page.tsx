@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { PasswordGate } from "@/components/auth/password-gate"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -180,6 +181,7 @@ export default function InfraestructuraPage() {
   }
 
   return (
+    <PasswordGate section="Infraestructura">
     <DashboardLayout
       title="Infraestructura"
       description="Monitoreo de red en tiempo real via UptimeRobot"
@@ -256,5 +258,6 @@ export default function InfraestructuraPage() {
         )}
       </div>
     </DashboardLayout>
+    </PasswordGate>
   )
 }
