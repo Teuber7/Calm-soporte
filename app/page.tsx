@@ -15,59 +15,64 @@ const fallbackMetrics = {
   satisfaccion: 4.6,
 }
 
+const SLA_MINUTES: Record<string, number> = {
+  alta: 4 * 60,
+  media: 8 * 60,
+  baja: 24 * 60,
+}
+
+
 function calculateDashboardMetrics(tickets: Ticket[]) {
-  const ratedTickets = tickets.filter((ticket) => typeof ticket.rating === "number")
+  const ratedTickets = tickets.filter((t) => t.rating != null)
   const resolvedTickets = tickets.filter(
-    (ticket) => ticket.status === "resuelto" && ticket.resolvedAt instanceof Date
+    (t) => t.status === "resuelto" && t.resolvedAt instanceof Date
   )
+  const respondedTickets = tickets.filter((t) => t.firstResponseAt instanceof Date)
 
-  const satisfaccion = ratedTickets.length > 0
-    ? ratedTickets.reduce((total, ticket) => total + (ticket.rating ?? 0), 0) / ratedTickets.length
-    : fallbackMetrics.satisfaccion
-
-  const avgResolutionTime = resolvedTickets.length > 0
-    ? resolvedTickets.reduce((total, ticket) => {
-        const resolvedAt = ticket.resolvedAt ?? ticket.createdAt
-        const durationInMinutes = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60)
-        return total + durationInMinutes
-      }, 0) / resolvedTickets.length
-    : fallbackMetrics.avgResolutionTime
-
-  const slaCumplido = resolvedTickets.length > 0
-    ? Math.round(
-        (resolvedTickets.filter((ticket) => {
-          const resolvedAt = ticket.resolvedAt ?? ticket.createdAt
-          const durationInMinutes = (resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60)
-          return durationInMinutes <= 2
-        }).length / resolvedTickets.length) * 100
-      )
-    : fallbackMetrics.slaCumplido
-
-  const sortedRatedTickets = [...ratedTickets].sort(
-    (left, right) => left.createdAt.getTime() - right.createdAt.getTime()
-  )
-  const midpoint = Math.floor(sortedRatedTickets.length / 2)
-  const previousRatings = sortedRatedTickets.slice(0, midpoint)
-  const recentRatings = sortedRatedTickets.slice(midpoint)
-
-  const previousAverage = previousRatings.length > 0
-    ? previousRatings.reduce((total, ticket) => total + (ticket.rating ?? 0), 0) / previousRatings.length
-    : satisfaccion
-
-  const recentAverage = recentRatings.length > 0
-    ? recentRatings.reduce((total, ticket) => total + (ticket.rating ?? 0), 0) / recentRatings.length
-    : satisfaccion
-
-  const satisfactionTrend = previousAverage > 0
-    ? Math.round(((recentAverage - previousAverage) / previousAverage) * 100)
+  // Tiempo de primera respuesta promedio
+  const avgResponseTime = respondedTickets.length > 0
+    ? respondedTickets.reduce((total, t) => {
+        const mins = (new Date(t.firstResponseAt!).getTime() - t.createdAt.getTime()) / (1000 * 60)
+        return total + mins
+      }, 0) / respondedTickets.length
     : 0
 
+  // Tiempo de resolución promedio
+  const avgResolutionTime = resolvedTickets.length > 0
+    ? resolvedTickets.reduce((total, t) => {
+        const mins = (new Date(t.resolvedAt!).getTime() - t.createdAt.getTime()) / (1000 * 60)
+        return total + mins
+      }, 0) / resolvedTickets.length
+    : 0
+
+  // SLA: ticket resuelto dentro del umbral según prioridad
+  const slaCumplido = resolvedTickets.length > 0
+    ? Math.round(
+        resolvedTickets.filter((t) => {
+          const mins = (new Date(t.resolvedAt!).getTime() - t.createdAt.getTime()) / (1000 * 60)
+          return mins <= (SLA_MINUTES[t.priority] ?? SLA_MINUTES.media)
+        }).length / resolvedTickets.length * 100
+      )
+    : 0
+
+  // Satisfacción y tendencia
+  const satisfaccion = ratedTickets.length > 0
+    ? ratedTickets.reduce((total, t) => total + (t.rating ?? 0), 0) / ratedTickets.length
+    : fallbackMetrics.satisfaccion
+
+  const sorted = [...ratedTickets].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+  const mid = Math.floor(sorted.length / 2)
+  const prevAvg = sorted.slice(0, mid).reduce((s, t) => s + (t.rating ?? 0), 0) / (mid || 1)
+  const recentAvg = sorted.slice(mid).reduce((s, t) => s + (t.rating ?? 0), 0) / (sorted.slice(mid).length || 1)
+  const satisfactionTrend = prevAvg > 0 ? Math.round(((recentAvg - prevAvg) / prevAvg) * 100) : 0
+
   return {
-    avgResponseTime: fallbackMetrics.avgResponseTime,
+    avgResponseTime,
     avgResolutionTime,
     slaCumplido,
     satisfaccion,
     satisfactionTrend,
+    hasData: resolvedTickets.length > 0,
   }
 }
 
@@ -85,6 +90,7 @@ export default function DashboardPage() {
             data.map((t) => ({
               ...t,
               createdAt: new Date(t.createdAt),
+              firstResponseAt: t.firstResponseAt ? new Date(t.firstResponseAt) : undefined,
               resolvedAt: t.resolvedAt ? new Date(t.resolvedAt) : undefined,
             }))
           )
