@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 interface UptimeMonitor {
   id?: number
   name: string
+  ip: string
   url: string | null
   status: "online" | "offline" | "degraded"
   uptime: string
@@ -57,11 +58,9 @@ function MonitorCard({ monitor }: { monitor: UptimeMonitor }) {
           </div>
           <div>
             <p className="text-sm font-semibold text-card-foreground">{monitor.name}</p>
-            {monitor.url && (
-              <p className="text-xs font-mono text-muted-foreground/70 mt-0.5 truncate max-w-[160px]">
-                {monitor.url}
-              </p>
-            )}
+            <p className="text-xs font-mono text-muted-foreground/70 mt-0.5">
+              {monitor.ip}
+            </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isOnline ? "Conexión estable" : isDegraded ? "Latencia elevada" : "Sin conexión"}
             </p>

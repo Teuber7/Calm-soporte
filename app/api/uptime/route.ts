@@ -48,25 +48,26 @@ function mapStatus(status: number): "online" | "offline" | "degraded" {
 }
 
 export async function GET() {
-  const monitors: { key: string; name: string }[] = []
+  const monitors: { key: string; name: string; ip: string }[] = []
 
   if (process.env.UPTIMEROBOT_GODOY) {
-    monitors.push({ key: process.env.UPTIMEROBOT_GODOY, name: "Localm Godoy" })
+    monitors.push({ key: process.env.UPTIMEROBOT_GODOY, name: "Localm Godoy", ip: "181.110.15.83" })
   }
   if (process.env.UPTIMEROBOT_UGARTE) {
-    monitors.push({ key: process.env.UPTIMEROBOT_UGARTE, name: "Ugarte Oficina" })
+    monitors.push({ key: process.env.UPTIMEROBOT_UGARTE, name: "Oficina Ugarte", ip: "190.224.135.237" })
   }
   if (process.env.UPTIMEROBOT_SANTOS) {
-    monitors.push({ key: process.env.UPTIMEROBOT_SANTOS, name: "Localm Santos" })
+    monitors.push({ key: process.env.UPTIMEROBOT_SANTOS, name: "Localm Santos", ip: "181.14.209.205" })
   }
 
   const results = await Promise.all(
-    monitors.map(async ({ key, name }) => {
+    monitors.map(async ({ key, name, ip }) => {
       const monitor = await fetchMonitor(key)
-      if (!monitor) return { name, url: null, status: "offline" as const, uptime: "0", responseTime: null }
+      if (!monitor) return { name, ip, url: null, status: "offline" as const, uptime: "0", responseTime: null }
       return {
         id: monitor.id,
-        name: monitor.friendly_name || name,
+        name,
+        ip,
         url: monitor.url || null,
         status: mapStatus(monitor.status),
         uptime: parseFloat(monitor.all_time_uptime_ratio || "0").toFixed(2),
