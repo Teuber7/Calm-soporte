@@ -56,6 +56,9 @@ export async function GET() {
   if (process.env.UPTIMEROBOT_UGARTE) {
     monitors.push({ key: process.env.UPTIMEROBOT_UGARTE, name: "Ugarte Oficina" })
   }
+  if (process.env.UPTIMEROBOT_SANTOS) {
+    monitors.push({ key: process.env.UPTIMEROBOT_SANTOS, name: "Localm Santos" })
+  }
 
   const results = await Promise.all(
     monitors.map(async ({ key, name }) => {
