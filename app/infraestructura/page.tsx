@@ -1,19 +1,108 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { LocationMonitor } from "@/components/dashboard/location-monitor"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { Location } from "@/lib/mock-data"
-import { Wifi, WifiOff, RefreshCw, Server, Activity, Clock } from "lucide-react"
+import { Wifi, WifiOff, RefreshCw, Activity, Clock, Gauge, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-function UptimeStats({ locations }: { locations: Location[] }) {
-  const online = locations.filter((l) => l.status === "online").length
-  const total = locations.length
-  const uptimePercentage = Math.round((online / total) * 100)
+interface UptimeMonitor {
+  id?: number
+  name: string
+  status: "online" | "offline" | "degraded"
+  uptime: string
+  responseTime: number | null
+}
+
+function StatusBadge({ status }: { status: UptimeMonitor["status"] }) {
+  if (status === "online") return (
+    <Badge variant="outline" className="bg-success/20 text-success border-success/30 text-[10px]">
+      Online
+    </Badge>
+  )
+  if (status === "degraded") return (
+    <Badge variant="outline" className="bg-warning/20 text-warning border-warning/30 text-[10px]">
+      Degradado
+    </Badge>
+  )
+  return (
+    <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">
+      Offline
+    </Badge>
+  )
+}
+
+function MonitorCard({ monitor }: { monitor: UptimeMonitor }) {
+  const isOnline = monitor.status === "online"
+  const isDegraded = monitor.status === "degraded"
+
+  return (
+    <div className="rounded-lg border border-border bg-secondary/30 p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-full shrink-0",
+            isOnline ? "bg-success/20" : isDegraded ? "bg-warning/20" : "bg-destructive/20"
+          )}>
+            {isOnline ? (
+              <Wifi className="h-5 w-5 text-success" />
+            ) : isDegraded ? (
+              <AlertTriangle className="h-5 w-5 text-warning" />
+            ) : (
+              <WifiOff className="h-5 w-5 text-destructive" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-card-foreground">{monitor.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isOnline ? "Conexión estable" : isDegraded ? "Latencia elevada" : "Sin conexión"}
+            </p>
+          </div>
+        </div>
+        <StatusBadge status={monitor.status} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-md bg-card/50 p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Activity className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Uptime histórico</span>
+          </div>
+          <p className={cn(
+            "text-lg font-bold",
+            parseFloat(monitor.uptime) >= 99 ? "text-success" :
+            parseFloat(monitor.uptime) >= 95 ? "text-warning" : "text-destructive"
+          )}>
+            {monitor.uptime}%
+          </p>
+        </div>
+        <div className="rounded-md bg-card/50 p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Gauge className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Tiempo respuesta</span>
+          </div>
+          <p className={cn(
+            "text-lg font-bold",
+            monitor.responseTime === null ? "text-muted-foreground" :
+            monitor.responseTime < 300 ? "text-success" :
+            monitor.responseTime < 800 ? "text-warning" : "text-destructive"
+          )}>
+            {monitor.responseTime !== null ? `${monitor.responseTime}ms` : "—"}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OverallStats({ monitors }: { monitors: UptimeMonitor[] }) {
+  const online = monitors.filter((m) => m.status === "online").length
+  const total = monitors.length
+  const avgUptime = total > 0
+    ? (monitors.reduce((acc, m) => acc + parseFloat(m.uptime), 0) / total).toFixed(2)
+    : "0"
 
   return (
     <Card className="bg-card border-border">
@@ -26,202 +115,23 @@ function UptimeStats({ locations }: { locations: Location[] }) {
       <CardContent>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
-            <p className="text-3xl font-bold text-card-foreground">{online}</p>
+            <p className="text-3xl font-bold text-success">{online}</p>
             <p className="text-xs text-muted-foreground">Sedes Online</p>
           </div>
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
-            <p className="text-3xl font-bold text-card-foreground">{total - online}</p>
+            <p className="text-3xl font-bold text-destructive">{total - online}</p>
             <p className="text-xs text-muted-foreground">Sedes Offline</p>
           </div>
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
             <p className={cn(
               "text-3xl font-bold",
-              uptimePercentage >= 90 ? "text-success" : uptimePercentage >= 75 ? "text-warning" : "text-destructive"
+              parseFloat(avgUptime) >= 99 ? "text-success" :
+              parseFloat(avgUptime) >= 95 ? "text-warning" : "text-destructive"
             )}>
-              {uptimePercentage}%
+              {avgUptime}%
             </p>
-            <p className="text-xs text-muted-foreground">Uptime Total</p>
+            <p className="text-xs text-muted-foreground">Uptime Promedio</p>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-interface Incident {
-  id: string
-  locationName: string
-  type: "caída" | "restauración" | "latencia"
-  startTime: Date
-  endTime?: Date
-}
-
-function formatDuration(start: Date, end?: Date): string {
-  const now = end || new Date()
-  let diff = Math.floor((now.getTime() - start.getTime()) / 1000)
-  
-  if (diff < 60) return `${diff}s`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m`
-  return `${Math.floor(diff / 86400)}d`
-}
-
-function formatTime(date: Date): string {
-  const now = new Date()
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  
-  if (diff < 60) return "Ahora"
-  if (diff < 3600) return `${Math.floor(diff / 60)}m atrás`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`
-  return `${Math.floor(diff / 86400)}d atrás`
-}
-
-function IncidentHistory({ incidents }: { incidents: Incident[] }) {
-  const sortedIncidents = [...incidents].reverse()
-
-  return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <Clock className="h-4 w-4 text-warning" />
-          Historial de Incidentes
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {sortedIncidents.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">
-              Sin incidentes registrados
-            </p>
-          ) : (
-            sortedIncidents.map((incident) => (
-              <div
-                key={incident.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full",
-                    incident.type === "caída" ? "bg-destructive/20" : incident.type === "restauración" ? "bg-success/20" : "bg-warning/20"
-                  )}>
-                    {incident.type === "caída" || incident.type === "latencia" ? (
-                      <WifiOff className={cn(
-                        "h-4 w-4",
-                        incident.type === "caída" ? "text-destructive" : "text-warning"
-                      )} />
-                    ) : (
-                      <Wifi className="h-4 w-4 text-success" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-card-foreground">
-                      {incident.locationName}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {incident.type === "caída" ? "Caída de red" : incident.type === "restauración" ? "Restauración" : "Latencia alta"}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-card-foreground">
-                    {formatDuration(incident.startTime, incident.endTime)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTime(incident.startTime)}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ServerStatus() {
-  const servers = [
-    { name: "Servidor Principal", status: "online", cpu: 45, memory: 62 },
-    { name: "Servidor Backup", status: "online", cpu: 12, memory: 34 },
-    { name: "Servidor BD", status: "online", cpu: 78, memory: 85 },
-    { name: "Servidor Email", status: "maintenance", cpu: 0, memory: 0 },
-  ]
-
-  return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <Server className="h-4 w-4 text-chart-2" />
-          Estado de Servidores
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {servers.map((server) => (
-            <div
-              key={server.name}
-              className="rounded-lg border border-border bg-secondary/30 p-3"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-card-foreground">
-                  {server.name}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px]",
-                    server.status === "online"
-                      ? "bg-success/20 text-success border-success/30"
-                      : "bg-warning/20 text-warning border-warning/30"
-                  )}
-                >
-                  {server.status === "online" ? "Online" : "Mantenimiento"}
-                </Badge>
-              </div>
-              {server.status === "online" && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">CPU</span>
-                      <span className={cn(
-                        server.cpu > 80 ? "text-destructive" : server.cpu > 60 ? "text-warning" : "text-success"
-                      )}>
-                        {server.cpu}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          server.cpu > 80 ? "bg-destructive" : server.cpu > 60 ? "bg-warning" : "bg-success"
-                        )}
-                        style={{ width: `${server.cpu}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">RAM</span>
-                      <span className={cn(
-                        server.memory > 80 ? "text-destructive" : server.memory > 60 ? "text-warning" : "text-success"
-                      )}>
-                        {server.memory}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          server.memory > 80 ? "bg-destructive" : server.memory > 60 ? "bg-warning" : "bg-success"
-                        )}
-                        style={{ width: `${server.memory}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       </CardContent>
     </Card>
@@ -229,208 +139,116 @@ function ServerStatus() {
 }
 
 export default function InfraestructuraPage() {
-  const [locations, setLocations] = useState<Location[]>([])
-  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [monitors, setMonitors] = useState<UptimeMonitor[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [previousStates, setPreviousStates] = useState<Record<string, "online" | "offline">>({})
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const normalizeLocations = (rawLocations: Location[]): Location[] => {
-    const locationNamesById: Record<string, string> = {
-      "LOC-001": "Localm Austrias",
-      "LOC-002": "Localm Libertador",
-      "LOC-003": "Localm Godoy",
-      "LOC-004": "Localm Santos",
-    }
-
-    return rawLocations.map((loc) => ({
-      ...loc,
-      name: locationNamesById[loc.id] ?? loc.name,
-      uptimeStart: new Date(loc.uptimeStart),
-      lastDowntime: loc.lastDowntime ? new Date(loc.lastDowntime) : undefined,
-    }))
-  }
-
-  // Cargar datos de la API al montar el componente
-  useEffect(() => {
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data: Location[]) => {
-        const normalized = normalizeLocations(data)
-        setLocations(normalized)
-        setPreviousStates(Object.fromEntries(normalized.map((loc) => [loc.id, loc.status])))
-      })
-      .catch(() => {})
-
-    const savedIncidents = localStorage.getItem("infraIncidents")
-    if (savedIncidents) {
-      try {
-        const parsed = JSON.parse(savedIncidents, (key, value) => {
-          if ((key === "startTime" || key === "endTime") && typeof value === "string") {
-            return new Date(value)
-          }
-          return value
-        })
-        setIncidents(parsed)
-      } catch {
-        setIncidents([])
-      }
+  const fetchMonitors = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setIsRefreshing(true)
+    try {
+      const res = await fetch("/api/uptime")
+      const data = await res.json() as UptimeMonitor[]
+      setMonitors(data)
+      setLastUpdated(new Date())
+    } catch {
+      // keep previous state on error
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
     }
   }, [])
 
-  // Detectar cambios de estado y crear incidentes
+  // Initial load
   useEffect(() => {
-    if (locations.length === 0) return
+    fetchMonitors()
+  }, [fetchMonitors])
 
-    locations.forEach((location) => {
-      const prevStatus = previousStates[location.id]
-      
-      // Si cambió de online a offline
-      if (prevStatus === "online" && location.status === "offline") {
-        const newIncident: Incident = {
-          id: `INC-${Date.now()}-${location.id}`,
-          locationName: location.name,
-          type: "caída",
-          startTime: new Date(),
-        }
-        setIncidents((prev) => {
-          const updated = [...prev, newIncident]
-          localStorage.setItem("infraIncidents", JSON.stringify(updated))
-          return updated
-        })
-      }
-      // Si cambió de offline a online
-      else if (prevStatus === "offline" && location.status === "online") {
-        // Marcar como restaurado el último incidente de caída
-        setIncidents((prev) => {
-          const updated = prev.map((inc) =>
-            inc.locationName === location.name && inc.type === "caída" && !inc.endTime
-              ? { ...inc, type: "restauración", endTime: new Date() }
-              : inc
-          )
-          localStorage.setItem("infraIncidents", JSON.stringify(updated))
-          return updated
-        })
-      }
-    })
-
-    // Actualizar estados previos
-    setPreviousStates(
-      Object.fromEntries(locations.map((loc) => [loc.id, loc.status]))
-    )
-  }, [locations])
-
-  // Guardar incidentes en localStorage cuando cambien
+  // Auto-refresh every 60 seconds
   useEffect(() => {
-    if (incidents.length > 0) {
-      localStorage.setItem("infraIncidents", JSON.stringify(incidents))
-    }
-  }, [incidents])
+    const interval = setInterval(() => fetchMonitors(), 60000)
+    return () => clearInterval(interval)
+  }, [fetchMonitors])
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsRefreshing(false)
-  }
-
-  const toggleStatus = async (locationId: string) => {
-    const loc = locations.find((l) => l.id === locationId)
-    if (!loc) return
-    const newStatus = loc.status === "online" ? "offline" : "online"
-    const uptimeStart = newStatus === "online" ? new Date().toISOString() : loc.uptimeStart.toISOString()
-    const lastDowntime = newStatus === "offline" ? new Date().toISOString() : (loc.lastDowntime?.toISOString() ?? null)
-    await fetch(`/api/locations/${locationId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus, uptimeStart, lastDowntime }),
-    }).catch(() => {})
-    setLocations((prev) =>
-      prev.map((l) =>
-        l.id === locationId
-          ? {
-              ...l,
-              status: newStatus,
-              uptimeStart: newStatus === "online" ? new Date() : l.uptimeStart,
-              lastDowntime: newStatus === "offline" ? new Date() : l.lastDowntime,
-            }
-          : l
-      )
-    )
+  function formatTime(date: Date): string {
+    return date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
   }
 
   return (
     <DashboardLayout
       title="Infraestructura"
-      description="Monitoreo de red y servidores en tiempo real"
+      description="Monitoreo de red en tiempo real via UptimeRobot"
     >
       <div className="space-y-6">
-        {/* Header actions */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/20">
-              <Wifi className="h-4 w-4 text-success" />
+            <div className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full",
+              monitors.some((m) => m.status !== "online") ? "bg-destructive/20" : "bg-success/20"
+            )}>
+              <Wifi className={cn(
+                "h-4 w-4",
+                monitors.some((m) => m.status !== "online") ? "text-destructive" : "text-success"
+              )} />
             </div>
             <span className="text-sm text-muted-foreground">
-              Monitoreo activo - Actualizando cada 1 segundo ({incidents.length} incidentes)
+              {isLoading ? "Consultando UptimeRobot…" : (
+                <>
+                  Actualización automática cada 60s
+                  {lastUpdated && (
+                    <span className="ml-1 text-muted-foreground/60">
+                      — última: {formatTime(lastUpdated)}
+                    </span>
+                  )}
+                </>
+              )}
             </span>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
+            onClick={() => fetchMonitors(true)}
+            disabled={isRefreshing || isLoading}
           >
             <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
             Actualizar
           </Button>
         </div>
 
-        {/* Stats */}
-        <UptimeStats locations={locations} />
+        {/* Overall stats */}
+        {!isLoading && <OverallStats monitors={monitors} />}
 
-        {/* Location Monitor */}
-        <LocationMonitor locations={locations} />
+        {/* Monitor cards */}
+        {isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="rounded-lg border border-border bg-secondary/30 p-4 h-32 animate-pulse" />
+            ))}
+          </div>
+        ) : monitors.length === 0 ? (
+          <Card className="bg-card border-border">
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground text-sm">
+                No hay monitores configurados. Verificá las variables de entorno UPTIMEROBOT_GODOY y UPTIMEROBOT_UGARTE.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {monitors.map((monitor) => (
+              <MonitorCard key={monitor.name} monitor={monitor} />
+            ))}
+          </div>
+        )}
 
-        {/* Simulate controls - for demo */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">
-              Simulación de Estados (Demo)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground mb-3">
-              Haz clic en una sede para simular una caída o restauración de conexión
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {locations.map((loc) => (
-                <Button
-                  key={loc.id}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleStatus(loc.id)}
-                  className={cn(
-                    loc.status === "online"
-                      ? "border-success/50 text-success hover:bg-success/10"
-                      : "border-destructive/50 text-destructive hover:bg-destructive/10"
-                  )}
-                >
-                  {loc.status === "online" ? (
-                    <Wifi className="h-3 w-3 mr-1" />
-                  ) : (
-                    <WifiOff className="h-3 w-3 mr-1" />
-                  )}
-                  {loc.name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bottom grid */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ServerStatus />
-          <IncidentHistory incidents={incidents} />
-        </div>
+        {/* Last updated footer */}
+        {lastUpdated && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            Datos de UptimeRobot — última actualización: {formatTime(lastUpdated)}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )
