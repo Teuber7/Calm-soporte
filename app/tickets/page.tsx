@@ -62,6 +62,11 @@ export default function TicketsPage() {
     setRatingTicketId(ticketId)
   }
 
+  const handleDelete = async (ticketId: string) => {
+    await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" })
+    setTickets((prev) => prev.filter((t) => t.id !== ticketId))
+  }
+
   const handleRating = async (rating: number, comment?: string) => {
     if (ratingTicketId) {
       await fetch(`/api/tickets/${ratingTicketId}`, {
@@ -90,6 +95,7 @@ export default function TicketsPage() {
             tickets={tickets}
             onStatusChange={handleStatusChange}
             onResolve={handleResolve}
+            onDelete={handleDelete}
           />
         </div>
       </div>

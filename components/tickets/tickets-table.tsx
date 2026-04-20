@@ -15,16 +15,27 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { MoreHorizontal, Clock, Star } from "lucide-react"
+import { MoreHorizontal, Clock, Star, Zap, Trash2 } from "lucide-react"
 import type { Ticket } from "@/lib/mock-data"
 
 interface TicketsTableProps {
   tickets: Ticket[]
   onStatusChange: (ticketId: string, status: Ticket["status"]) => void
   onResolve: (ticketId: string) => void
+  onDelete: (ticketId: string) => void
+}
+
+function formatDuration(from: Date, to?: Date): string {
+  const ms = (to ?? new Date()).getTime() - from.getTime()
+  const totalMinutes = Math.floor(ms / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours === 0) return `${minutes}m`
+  return `${hours}h ${minutes}m`
 }
 
 function getTimeAgo(date: Date): string {
@@ -52,44 +63,33 @@ function getSLAStatus(ticket: Ticket): { label: string; color: string } {
   const diff = now.getTime() - ticket.createdAt.getTime()
   const hours = diff / (1000 * 60 * 60)
 
-  // SLA thresholds based on priority
   const slaHours = ticket.priority === "alta" ? 4 : ticket.priority === "media" ? 8 : 24
-
   const percentUsed = (hours / slaHours) * 100
 
-  if (percentUsed >= 100) {
-    return { label: "SLA Vencido", color: "text-destructive" }
-  }
-  if (percentUsed >= 75) {
-    return { label: "En riesgo", color: "text-warning" }
-  }
+  if (percentUsed >= 100) return { label: "SLA Vencido", color: "text-destructive" }
+  if (percentUsed >= 75) return { label: "En riesgo", color: "text-warning" }
   return { label: "En tiempo", color: "text-success" }
 }
 
 function getPriorityColor(priority: Ticket["priority"]) {
   switch (priority) {
-    case "alta":
-      return "bg-destructive/20 text-destructive border-destructive/30"
-    case "media":
-      return "bg-warning/20 text-warning border-warning/30"
-    case "baja":
-      return "bg-primary/20 text-primary border-primary/30"
+    case "alta":   return "bg-destructive/20 text-destructive border-destructive/30"
+    case "media":  return "bg-warning/20 text-warning border-warning/30"
+    case "baja":   return "bg-primary/20 text-primary border-primary/30"
   }
 }
 
 function getStatusColor(status: Ticket["status"]) {
   switch (status) {
-    case "abierto":
-      return "bg-chart-2/20 text-chart-2 border-chart-2/30"
-    case "en_proceso":
-      return "bg-warning/20 text-warning border-warning/30"
-    case "resuelto":
-      return "bg-success/20 text-success border-success/30"
+    case "abierto":    return "bg-chart-2/20 text-chart-2 border-chart-2/30"
+    case "en_proceso": return "bg-warning/20 text-warning border-warning/30"
+    case "resuelto":   return "bg-success/20 text-success border-success/30"
   }
 }
 
-export function TicketsTable({ tickets, onStatusChange, onResolve }: TicketsTableProps) {
+export function TicketsTable({ tickets, onStatusChange, onResolve, onDelete }: TicketsTableProps) {
   const [filter, setFilter] = useState<"all" | Ticket["status"]>("all")
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const filteredTickets =
     filter === "all" ? tickets : tickets.filter((t) => t.status === filter)
@@ -114,6 +114,7 @@ export function TicketsTable({ tickets, onStatusChange, onResolve }: TicketsTabl
         <div className="space-y-3">
           {filteredTickets.map((ticket) => {
             const sla = getSLAStatus(ticket)
+            const firstResponseAt = ticket.firstResponseAt ? new Date(ticket.firstResponseAt) : null
             return (
               <div
                 key={ticket.id}
@@ -135,11 +136,7 @@ export function TicketsTable({ tickets, onStatusChange, onResolve }: TicketsTabl
                         variant="outline"
                         className={cn("text-[10px]", getStatusColor(ticket.status))}
                       >
-                        {ticket.status === "abierto"
-                          ? "Abierto"
-                          : ticket.status === "en_proceso"
-                          ? "En Proceso"
-                          : "Resuelto"}
+                        {ticket.status === "abierto" ? "Abierto" : ticket.status === "en_proceso" ? "En Proceso" : "Resuelto"}
                       </Badge>
                       {ticket.rating && (
                         <div className="flex items-center gap-0.5">
@@ -160,9 +157,17 @@ export function TicketsTable({ tickets, onStatusChange, onResolve }: TicketsTabl
                     <p className="text-sm font-medium text-card-foreground mb-1">
                       {ticket.problem}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {ticket.userName}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{ticket.userName}</p>
+
+                    {/* Primera respuesta */}
+                    {firstResponseAt && (
+                      <div className="flex items-center gap-1 mt-2 text-xs text-chart-2">
+                        <Zap className="h-3 w-3" />
+                        <span>
+                          Primera respuesta: {formatDuration(ticket.createdAt, firstResponseAt)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
@@ -196,6 +201,24 @@ export function TicketsTable({ tickets, onStatusChange, onResolve }: TicketsTabl
                         {ticket.status === "resuelto" && (
                           <DropdownMenuItem onClick={() => onStatusChange(ticket.id, "abierto")}>
                             Reabrir Ticket
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        {confirmDelete === ticket.id ? (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            onClick={() => { onDelete(ticket.id); setConfirmDelete(null) }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Confirmar eliminación
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            onClick={(e) => { e.preventDefault(); setConfirmDelete(ticket.id) }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Eliminar Ticket
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

@@ -7,6 +7,7 @@ export interface Ticket {
   priority: "alta" | "media" | "baja"
   status: "abierto" | "en_proceso" | "resuelto"
   createdAt: Date
+  firstResponseAt?: Date
   resolvedAt?: Date
   rating?: number
   comment?: string

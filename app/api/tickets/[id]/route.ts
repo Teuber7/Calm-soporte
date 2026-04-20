@@ -14,11 +14,19 @@ export async function PATCH(
     comment?: string
   }
 
+  // Get current ticket to check if firstResponseAt should be set
+  const current = await prisma.ticket.findUnique({ where: { id }, select: { firstResponseAt: true, userEmail: true, ratingToken: true } })
+
   const data: Record<string, unknown> = {}
   if (body.status !== undefined) data.status = body.status
   if (body.resolvedAt !== undefined) data.resolvedAt = body.resolvedAt ? new Date(body.resolvedAt) : null
   if (body.rating !== undefined) data.rating = body.rating
   if (body.comment !== undefined) data.comment = body.comment
+
+  // Set firstResponseAt the first time ticket moves to en_proceso
+  if (body.status === "en_proceso" && !current?.firstResponseAt) {
+    data.firstResponseAt = new Date()
+  }
 
   const ticket = await prisma.ticket.update({ where: { id }, data })
 
@@ -67,4 +75,13 @@ export async function PATCH(
   }
 
   return NextResponse.json(ticket)
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  await prisma.ticket.delete({ where: { id } })
+  return NextResponse.json({ ok: true })
 }
