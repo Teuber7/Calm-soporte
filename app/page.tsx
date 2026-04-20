@@ -6,7 +6,7 @@ import { KPICards } from "@/components/dashboard/kpi-cards"
 import { TicketsList } from "@/components/dashboard/tickets-list"
 import { LocationMonitor } from "@/components/dashboard/location-monitor"
 import { SatisfactionChart } from "@/components/dashboard/satisfaction-chart"
-import type { Location, Ticket } from "@/lib/mock-data"
+import type { Ticket } from "@/lib/mock-data"
 
 const fallbackMetrics = {
   avgResponseTime: 2,
@@ -72,25 +72,8 @@ function calculateDashboardMetrics(tickets: Ticket[]) {
 }
 
 export default function DashboardPage() {
-  const [locations, setLocations] = useState<Location[]>([])
   const [tickets, setTickets] = useState<Ticket[]>([])
   const dashboardMetrics = calculateDashboardMetrics(tickets)
-
-  // Load locations once
-  useEffect(() => {
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data: Location[]) =>
-        setLocations(
-          data.map((loc) => ({
-            ...loc,
-            uptimeStart: new Date(loc.uptimeStart),
-            lastDowntime: loc.lastDowntime ? new Date(loc.lastDowntime) : undefined,
-          }))
-        )
-      )
-      .catch(() => {})
-  }, [])
 
   // Poll tickets every 5s for real-time updates
   useEffect(() => {
@@ -123,7 +106,7 @@ export default function DashboardPage() {
         <KPICards {...dashboardMetrics} />
 
         {/* Location Monitor */}
-        <LocationMonitor locations={locations} />
+        <LocationMonitor />
 
         {/* Bottom Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
