@@ -10,7 +10,6 @@ interface UptimeRobotMonitor {
   status: number
   all_time_uptime_ratio: string
   average_response_time: string
-  create_datetime: number
 }
 
 interface UptimeRobotResponse {
@@ -19,6 +18,9 @@ interface UptimeRobotResponse {
 }
 
 async function fetchMonitor(apiKey: string): Promise<UptimeRobotMonitor | null> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 6000)
+
   try {
     const res = await fetch("https://api.uptimerobot.com/v2/getMonitors", {
       method: "POST",
@@ -26,11 +28,14 @@ async function fetchMonitor(apiKey: string): Promise<UptimeRobotMonitor | null> 
       body: new URLSearchParams({
         api_key: apiKey,
         format: "json",
-        response_times: "1",
         all_time_uptime_ratio: "1",
+        response_times: "1",
+        response_times_limit: "1",
       }),
-      next: { revalidate: 0 },
+      cache: "no-store",
+      signal: controller.signal,
     })
+
     const data = await res.json() as UptimeRobotResponse
     if (data.stat === "ok" && data.monitors?.length > 0) {
       return data.monitors[0]
@@ -38,6 +43,8 @@ async function fetchMonitor(apiKey: string): Promise<UptimeRobotMonitor | null> 
     return null
   } catch {
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -74,7 +81,7 @@ export async function GET() {
         url: monitor.url || null,
         status: mapStatus(monitor.status),
         uptime: parseFloat(monitor.all_time_uptime_ratio || "0").toFixed(2),
-        responseTime: monitor.average_response_time ? parseInt(monitor.average_response_time) : null,
+        responseTime: monitor.average_response_time ? Math.round(parseFloat(monitor.average_response_time)) : null,
       }
     })
   )
