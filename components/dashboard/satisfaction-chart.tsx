@@ -78,7 +78,7 @@ export function SatisfactionChart({ tickets }: SatisfactionChartProps) {
           <p className="text-xs font-medium text-muted-foreground mb-3">
             Comentarios recientes
           </p>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
             {ratedTickets
               .filter((t) => t.comment)
               .map((ticket) => (
