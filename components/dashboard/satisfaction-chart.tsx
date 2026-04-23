@@ -81,7 +81,6 @@ export function SatisfactionChart({ tickets }: SatisfactionChartProps) {
           <div className="space-y-2">
             {ratedTickets
               .filter((t) => t.comment)
-              .slice(0, 2)
               .map((ticket) => (
                 <div
                   key={ticket.id}
