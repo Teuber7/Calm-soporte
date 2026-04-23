@@ -59,6 +59,9 @@ export async function GET() {
   if (process.env.UPTIMEROBOT_SANTOS) {
     monitors.push({ key: process.env.UPTIMEROBOT_SANTOS, name: "Localm Santos", ip: "181.14.209.205" })
   }
+  if (process.env.UPTIMEROBOT_AUSTRIA) {
+    monitors.push({ key: process.env.UPTIMEROBOT_AUSTRIA, name: "Localm Austria", ip: "181.104.115.5" })
+  }
 
   const results = await Promise.all(
     monitors.map(async ({ key, name, ip }) => {

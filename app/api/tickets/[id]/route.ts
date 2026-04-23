@@ -54,6 +54,10 @@ export async function PATCH(
             <p style="margin-top: 0; color: #555;">
               Tu ticket <strong>${ticket.id}</strong> fue resuelto. Nos gustaría saber cómo fue tu experiencia con el soporte técnico.
             </p>
+            <div style="margin: 16px 0; padding: 12px 16px; background: #f3f4f6; border-left: 4px solid #2563eb; border-radius: 4px;">
+              <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Descripción del problema</p>
+              <p style="margin: 0; color: #1a1a1a;">${ticket.problem}</p>
+            </div>
             <p style="color: #555;">
               Tómate un minuto para calificar la atención que recibiste. Tu opinión nos ayuda a mejorar.
             </p>

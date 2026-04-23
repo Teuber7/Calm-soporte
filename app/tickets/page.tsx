@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { TicketForm } from "@/components/tickets/ticket-form"
 import { TicketsTable } from "@/components/tickets/tickets-table"
-import { RatingDialog } from "@/components/tickets/rating-dialog"
 import type { Ticket } from "@/lib/mock-data"
 
 function normalizeTickets(rawTickets: Ticket[]): Ticket[] {
@@ -17,7 +16,6 @@ function normalizeTickets(rawTickets: Ticket[]): Ticket[] {
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
-  const [ratingTicketId, setRatingTicketId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/tickets")
@@ -57,28 +55,9 @@ export default function TicketsPage() {
     )
   }
 
-  const handleResolve = (ticketId: string) => {
-    handleStatusChange(ticketId, "resuelto")
-    setRatingTicketId(ticketId)
-  }
-
   const handleDelete = async (ticketId: string) => {
     await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" })
     setTickets((prev) => prev.filter((t) => t.id !== ticketId))
-  }
-
-  const handleRating = async (rating: number, comment?: string) => {
-    if (ratingTicketId) {
-      await fetch(`/api/tickets/${ratingTicketId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, comment }),
-      })
-      setTickets((prev) =>
-        prev.map((t) => (t.id === ratingTicketId ? { ...t, rating, comment } : t))
-      )
-      setRatingTicketId(null)
-    }
   }
 
   return (
@@ -94,18 +73,11 @@ export default function TicketsPage() {
           <TicketsTable
             tickets={tickets}
             onStatusChange={handleStatusChange}
-            onResolve={handleResolve}
+            onResolve={(ticketId) => handleStatusChange(ticketId, "resuelto")}
             onDelete={handleDelete}
           />
         </div>
       </div>
-
-      <RatingDialog
-        open={ratingTicketId !== null}
-        onClose={() => setRatingTicketId(null)}
-        onSubmit={handleRating}
-        ticketId={ratingTicketId || ""}
-      />
     </DashboardLayout>
   )
 }
