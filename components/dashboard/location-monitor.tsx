@@ -139,6 +139,10 @@ export function LocationMonitor() {
               <div key={i} className="rounded-lg border border-border h-24 animate-pulse bg-secondary/30" />
             ))}
           </div>
+        ) : monitors.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            No hay monitores configurados. Verificá las variables de entorno en Vercel.
+          </p>
         ) : (
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
             {monitors.map((monitor) => (
